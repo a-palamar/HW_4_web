@@ -100,7 +100,6 @@ def run_udp_socket_server(ip, port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     server = ip, port
     sock.bind(server)
-    b_dict = {}
     try:
         logging.info(f'Starting UDP socket server on {ip}:{port}...')
         while True:
@@ -109,13 +108,22 @@ def run_udp_socket_server(ip, port):
             sock.sendto(data, address)
             logging.info(f'Send data: {data.decode()} to: {address}')
             try:
-                decoded_data = data.decode()
-            except UnicodeDecodeError as e:
-                logging.error(f"Error decoding JSON data: {e}")
-            json_object = json.dumps(decoded_data, indent=4)
+                decoded_data = json.loads(data.decode())
+                logging.info(f'Decoded JSON data: {decoded_data}')
+            except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                logging.error(f'Error decoding JSON data: {e}')
+                return
+            try:
+                with open("data.json", "r") as infile:
+                    existing_data = json.load(infile)
+            except (FileNotFoundError, json.JSONDecodeError):
+                existing_data = []
+
+            existing_data.append(decoded_data)
+
             try:
                 with open("data.json", "w") as outfile:
-                    outfile.write(json_object)
+                    json.dump(existing_data, outfile, indent=4)
             except Exception as e:
                 logging.error(
                     f"Error occurred while writing JSON to file: {e}")
@@ -123,8 +131,6 @@ def run_udp_socket_server(ip, port):
         logging.info("UDP socket server interrupted. Shutting down...")
     except Exception as e:
         logging.error(f"Error occurred in UDP socket server: {e}")
-    except ConnectionResetError:
-        logging.error("Connection reset by remote host")
     finally:
         sock.close()
 
