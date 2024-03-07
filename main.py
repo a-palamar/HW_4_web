@@ -7,6 +7,8 @@ import threading
 import socket
 import logging
 import json
+import os
+from datetime import datetime
 
 PORT_HTTP = 3000
 UDP_IP = '127.0.0.1'
@@ -66,13 +68,6 @@ class HttpHandler(BaseHTTPRequestHandler):
         data = self.rfile.read(content_length)
         print(data)
         self.forward_to_socket(data)
-
-        # # Forward the data to the socket server
-        # data_parse = urllib.parse.unquote_plus(data.decode())
-        # print(data_parse)
-        # data_dict = {key: value for key, value in [
-        #     el.split('=') for el in data_parse.split('&')]}
-        # print(data_dict)
         self.send_response(302)
         self.send_header('Location', '/')
         self.end_headers()
@@ -100,33 +95,57 @@ def run_udp_socket_server(ip, port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     server = ip, port
     sock.bind(server)
+
     try:
         logging.info(f'Starting UDP socket server on {ip}:{port}...')
         while True:
-            data, address = sock.recvfrom(1024)
-            logging.info(f'Received data: {data.decode()} from: {address}')
-            sock.sendto(data, address)
-            logging.info(f'Send data: {data.decode()} to: {address}')
             try:
-                decoded_data = json.loads(data.decode())
-                logging.info(f'Decoded JSON data: {decoded_data}')
-            except (json.JSONDecodeError, UnicodeDecodeError) as e:
-                logging.error(f'Error decoding JSON data: {e}')
-                return
-            try:
-                with open("data.json", "r") as infile:
-                    existing_data = json.load(infile)
-            except (FileNotFoundError, json.JSONDecodeError):
+                data, address = sock.recvfrom(1024)
+                logging.info(f'Received data: {data.decode()} from: {address}')
+                sock.sendto(data, address)
+                logging.info(f'Send data: {data.decode()} to: {address}')
+                try:
+                    decoded_data = urllib.parse.unquote_plus(data.decode())
+                    data_dict = {key: value for key, value in [
+                        el.split('=') for el in decoded_data.split('&')]}
+
+                    logging.info(f'Decoded JSON data: {decoded_data}')
+                except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                    logging.error(f'Error decoding JSON data: {e}')
+                    continue
+
                 existing_data = []
 
-            existing_data.append(decoded_data)
+                try:
+                    dir_for_json = r"D:\Projects\HW_4_web\storage"
+                    file_path = os.path.join(dir_for_json, 'data.json')
+                    with open(file_path, "r") as file:
+                        existing_data = json.load(file)
+                    #     for line in file:
+                    #         try:
+                    #             message = json.loads(line)
+                    #             existing_data.append(message)
+                    #         except json.JSONDecodeError as e:
+                    #             logging.error(
+                    #                 f"Error decoding JSON from line: {e}")
 
-            try:
-                with open("data.json", "w") as outfile:
-                    json.dump(existing_data, outfile, indent=4)
-            except Exception as e:
-                logging.error(
-                    f"Error occurred while writing JSON to file: {e}")
+                except FileNotFoundError:
+                    logging.error("File not found.")
+
+                date = datetime.now()
+                new_entry = {str(date): data_dict}
+                existing_data.append(new_entry)
+
+                try:
+                    with open(file_path, "w") as outfile:
+                        json.dump(existing_data, outfile, indent=4)
+
+                except Exception as e:
+                    logging.error(
+                        f"Error occurred while writing JSON to file: {e}")
+            except ConnectionResetError:
+                logging.error("Connection reset by remote host")
+                continue
     except KeyboardInterrupt:
         logging.info("UDP socket server interrupted. Shutting down...")
     except Exception as e:
@@ -144,4 +163,3 @@ if __name__ == '__main__':
     socket_server.start()
     http_server.join()
     socket_server.join()
-    print('Done!')
