@@ -117,7 +117,7 @@ def run_udp_socket_server(ip, port):
                 existing_data = []
 
                 try:
-                    dir_for_json = r"D:\Projects\HW_4_web\storage"
+                    dir_for_json = "storage"
                     file_path = os.path.join(dir_for_json, 'data.json')
                     with open(file_path, "r") as file:
                         existing_data = json.load(file)
