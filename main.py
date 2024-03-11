@@ -113,39 +113,34 @@ def run_udp_socket_server(ip, port):
                 except (json.JSONDecodeError, UnicodeDecodeError) as e:
                     logging.error(f'Error decoding JSON data: {e}')
                     continue
-
-                existing_data = []
-
-                try:
-                    dir_for_json = "storage"
-                    file_path = os.path.join(dir_for_json, 'data.json')
-                    with open(file_path, "r") as file:
-                        existing_data = json.load(file)
-                    #     for line in file:
-                    #         try:
-                    #             message = json.loads(line)
-                    #             existing_data.append(message)
-                    #         except json.JSONDecodeError as e:
-                    #             logging.error(
-                    #                 f"Error decoding JSON from line: {e}")
-
-                except FileNotFoundError:
-                    logging.error("File not found.")
-
-                date = datetime.now()
-                new_entry = {str(date): data_dict}
-                existing_data.append(new_entry)
-
-                try:
-                    with open(file_path, "w") as outfile:
-                        json.dump(existing_data, outfile, indent=4)
-
-                except Exception as e:
-                    logging.error(
-                        f"Error occurred while writing JSON to file: {e}")
             except ConnectionResetError:
                 logging.error("Connection reset by remote host")
                 continue
+
+            existing_data = []
+            dir_for_json = "storage"
+            if not os.path.exists(dir_for_json):
+                os.makedirs(dir_for_json)
+            file_path = os.path.join(dir_for_json, 'data.json')
+            try:
+                with open(file_path, "r") as file:
+                    existing_data = json.load(file)
+
+            except FileNotFoundError:
+                logging.error("File not found.")
+
+            date = datetime.now()
+            new_entry = {str(date): data_dict}
+            existing_data.append(new_entry)
+
+            try:
+                with open(file_path, "w") as outfile:
+                    json.dump(existing_data, outfile, indent=4)
+
+            except Exception as e:
+                logging.error(
+                    f"Error occurred while writing JSON to file: {e}")
+
     except KeyboardInterrupt:
         logging.info("UDP socket server interrupted. Shutting down...")
     except Exception as e:
